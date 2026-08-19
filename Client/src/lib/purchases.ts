@@ -7,7 +7,7 @@ import type {
 } from "./types";
 
 const PURCHASES = "/api/v1/purchases";
-const BASE_URL = import.meta.env.VITE_API_URL || "";
+const BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
 
 /**
  * POST /api/v1/purchases/orders

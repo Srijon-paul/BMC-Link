@@ -9,7 +9,7 @@ const AUTH = "/api/v1/auth";
  * then redirects to FRONTEND_SUCCESS_URL (dashboard).
  */
 export function initiateGoogleLogin(): void {
-  const baseUrl = import.meta.env.VITE_API_URL || "";
+  const baseUrl = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
   window.location.href = `${baseUrl}${AUTH}/google`;
 }
 
