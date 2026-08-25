@@ -4,9 +4,12 @@ import type { ApiResponse } from "./types";
 
 export const BASE_URL = (() => {
   const envUrl = (import.meta.env.VITE_API_URL || "").trim();
-  // In production builds, if VITE_API_URL is unset or accidentally points to localhost,
-  // use relative "" so requests route through the Vercel proxy rewrite
-  if (import.meta.env.PROD && (!envUrl || envUrl.includes("localhost") || envUrl.includes("127.0.0.1"))) {
+  // In production builds, if VITE_API_URL is unset, points to localhost, or points to onrender.com directly,
+  // use relative "" so requests route through the Vercel proxy rewrite to prevent cross-site cookie blocking
+  if (
+    import.meta.env.PROD &&
+    (!envUrl || envUrl.includes("localhost") || envUrl.includes("127.0.0.1") || envUrl.includes("onrender.com"))
+  ) {
     return "";
   }
   return envUrl.replace(/\/+$/, "");

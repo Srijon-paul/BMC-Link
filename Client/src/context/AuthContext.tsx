@@ -46,78 +46,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   const fetchUser = useCallback(async () => {
+    /** Build a merged User from /auth/me + /account */
+    const buildUserData = (me: User, profile: User | null): User => {
+      const avatarUrl =
+        profile?.creatorProfile?.avatar ||
+        profile?.profilePicture ||
+        me?.profilePicture ||
+        null;
+
+      return {
+        ...me,
+        ...(profile || {}),
+        profilePicture: avatarUrl || me?.profilePicture || profile?.profilePicture || null,
+        creatorProfile: profile?.creatorProfile
+          ? {
+              ...profile.creatorProfile,
+              avatar: avatarUrl || profile.creatorProfile.avatar || null,
+            }
+          : null,
+        role: me.role,
+        status: me.status,
+        isVerified: me.isVerified ?? profile?.isVerified ?? false,
+      };
+    };
+
+    /** Fetch /auth/me + /account and set user state */
+    const fetchAndSetUser = async (): Promise<boolean> => {
+      const [me, profile] = await Promise.all([
+        getMe(),
+        getProfile().catch(() => null),
+      ]);
+      const userData = buildUserData(me, profile);
+      setUser(userData);
+      try {
+        sessionStorage.setItem("bmc_user_cache", JSON.stringify(userData));
+      } catch {
+        // ignore storage error
+      }
+      return true;
+    };
+
     try {
       try {
-        const [me, profile] = await Promise.all([
-          getMe(),
-          getProfile().catch(() => null),
-        ]);
-
-        const avatarUrl =
-          profile?.creatorProfile?.avatar ||
-          profile?.profilePicture ||
-          me?.profilePicture ||
-          null;
-
-        const userData: User = {
-          ...me,
-          ...(profile || {}),
-          profilePicture: avatarUrl || me?.profilePicture || profile?.profilePicture || null,
-          creatorProfile: profile?.creatorProfile
-            ? {
-                ...profile.creatorProfile,
-                avatar: avatarUrl || profile.creatorProfile.avatar || null,
-              }
-            : null,
-          role: me.role,
-          status: me.status,
-          isVerified: me.isVerified ?? profile?.isVerified ?? false,
-        };
-
-        setUser(userData);
-        try {
-          sessionStorage.setItem("bmc_user_cache", JSON.stringify(userData));
-        } catch {
-          // ignore storage error
-        }
+        await fetchAndSetUser();
       } catch (err) {
-        const hadPreviousSession = !!sessionStorage.getItem("bmc_user_cache");
-        if (err instanceof ApiError && err.status === 401 && hadPreviousSession) {
-          // Access token expired for a previously logged-in user — try to silently refresh
+        if (err instanceof ApiError && err.status === 401) {
+          // Access token expired or missing — try to silently refresh
+          // Attempt refresh regardless of sessionStorage cache so new tabs
+          // can recover from an expired access token using the refresh cookie
           try {
             await refreshToken();
-            const [me, profile] = await Promise.all([
-              getMe(),
-              getProfile().catch(() => null),
-            ]);
-
-            const avatarUrl =
-              profile?.creatorProfile?.avatar ||
-              profile?.profilePicture ||
-              me?.profilePicture ||
-              null;
-
-            const userData: User = {
-              ...me,
-              ...(profile || {}),
-              profilePicture: avatarUrl || me?.profilePicture || profile?.profilePicture || null,
-              creatorProfile: profile?.creatorProfile
-                ? {
-                    ...profile.creatorProfile,
-                    avatar: avatarUrl || profile.creatorProfile.avatar || null,
-                  }
-                : null,
-              role: me.role,
-              status: me.status,
-              isVerified: me.isVerified ?? profile?.isVerified ?? false,
-            };
-
-            setUser(userData);
-            try {
-              sessionStorage.setItem("bmc_user_cache", JSON.stringify(userData));
-            } catch {
-              // ignore storage error
-            }
+            await fetchAndSetUser();
           } catch {
             // Both access and refresh token invalid — user is logged out
             setUser(null);
