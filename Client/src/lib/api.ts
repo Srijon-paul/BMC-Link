@@ -15,6 +15,52 @@ export const BASE_URL = (() => {
   return envUrl.replace(/\/+$/, "");
 })();
 
+// ─── Token Storage ───────────────────────────────────────────────────────────
+const ACCESS_TOKEN_KEY = "bmc_access_token";
+const REFRESH_TOKEN_KEY = "bmc_refresh_token";
+
+export function getStoredAccessToken(): string | null {
+  try {
+    return sessionStorage.getItem(ACCESS_TOKEN_KEY) || localStorage.getItem(ACCESS_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function getStoredRefreshToken(): string | null {
+  try {
+    return sessionStorage.getItem(REFRESH_TOKEN_KEY) || localStorage.getItem(REFRESH_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredTokens(accessToken: string, refreshToken?: string | null): void {
+  try {
+    if (accessToken) {
+      sessionStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+      localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+    }
+    if (refreshToken) {
+      sessionStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    }
+  } catch {
+    // ignore
+  }
+}
+
+export function clearStoredTokens(): void {
+  try {
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 // ─── CSRF Token ───────────────────────────────────────────────────────────────
 // The backend sets a non-HttpOnly `csrfToken` cookie that JS can read.
 // We forward it as `x-csrf-token` on every request so the CSRF middleware
@@ -46,6 +92,7 @@ export class ApiError extends Error {
  * Wraps `fetch` with:
  * - Base URL prepended automatically
  * - `credentials: "include"` so HTTP-only cookies (accessToken / refreshToken) are sent
+ * - Bearer authorization header if token is stored in memory/session
  * - JSON Content-Type header on mutation requests
  * - Typed response deserialization
  * - Structured error thrown on non-2xx status
@@ -57,10 +104,12 @@ export async function apiFetch<T>(
   const url = `${BASE_URL}${path}`;
 
   const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
+  const token = getStoredAccessToken();
 
   const headers: HeadersInit = {
     ...(options.body && !isFormData ? { "Content-Type": "application/json" } : {}),
     "x-csrf-token": getCsrfToken(),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers ?? {}),
   };
 
