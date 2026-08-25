@@ -16,12 +16,19 @@ authRoutes.get(
   }),
 );
 
+const getFrontendLoginUrl = () => {
+  const url = (process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/+$/, "");
+  return `${url}/login`;
+};
+
 authRoutes.get(
   "/google/callback",
-  passport.authenticate("google", {
-    session: false,
-    failureRedirect: `${process.env.FRONTEND_URL}/login`,
-  }),
+  (req, res, next) => {
+    passport.authenticate("google", {
+      session: false,
+      failureRedirect: getFrontendLoginUrl(),
+    })(req, res, next);
+  },
   authController.googleSuccess,
 );
 

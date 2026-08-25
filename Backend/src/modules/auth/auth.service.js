@@ -99,7 +99,16 @@ class AuthService {
       sessionId: session.id,
     });
 
-    await authRepository.updateSessionToken(session.id, hashed);
+    // Rotate: generate a NEW refresh token so the old one is invalidated
+    const newRefreshToken = generateRefreshToken({
+      userId: user.id,
+      sessionId: session.id,
+    });
+
+    await authRepository.updateSessionToken(
+      session.id,
+      hashRefreshToken(newRefreshToken),
+    );
 
     return {
       user: {
@@ -111,7 +120,7 @@ class AuthService {
         status: user.status,
       },
       accessToken: newAccessToken,
-      refreshToken,
+      refreshToken: newRefreshToken,
     };
   }
 
