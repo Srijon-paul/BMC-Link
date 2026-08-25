@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { getMe, logout as apiLogout, refreshToken } from "@/lib/auth";
 import { getProfile } from "@/lib/account";
-import { ApiError } from "@/lib/api";
+import { ApiError, setStoredTokens } from "@/lib/api";
 import type { User } from "@/lib/types";
 
 // ─── Context Shape ────────────────────────────────────────────────────────────
@@ -46,6 +46,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   const fetchUser = useCallback(async () => {
+    // Check if redirected with OAuth tokens in URL
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tokenParam = urlParams.get("token");
+      const refreshTokenParam = urlParams.get("refreshToken");
+      if (tokenParam) {
+        setStoredTokens(tokenParam, refreshTokenParam);
+        urlParams.delete("token");
+        urlParams.delete("refreshToken");
+        const cleanSearch = urlParams.toString() ? `?${urlParams.toString()}` : "";
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname + cleanSearch + window.location.hash
+        );
+      }
+    } catch {
+      // ignore
+    }
+
     /** Build a merged User from /auth/me + /account */
     const buildUserData = (me: User, profile: User | null): User => {
       const avatarUrl =

@@ -14,9 +14,12 @@ class AuthController {
     const { user, accessToken, refreshToken } =
       await authService.loginWithGoogle(req.user, req);
 
-    const redirectUrl =
+    const baseRedirectUrl =
       process.env.FRONTEND_SUCCESS_URL ||
       (process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL.replace(/\/+$/, "")}/dashboard` : "http://localhost:5173/dashboard");
+
+    const separator = baseRedirectUrl.includes("?") ? "&" : "?";
+    const redirectUrl = `${baseRedirectUrl}${separator}token=${encodeURIComponent(accessToken)}&refreshToken=${encodeURIComponent(refreshToken)}`;
 
     res
       .cookie("accessToken", accessToken, accessCookieOptions)
@@ -42,7 +45,13 @@ class AuthController {
       .cookie("accessToken", accessToken, accessCookieOptions)
       .cookie("refreshToken", newRefreshToken, refreshCookieOptions)
       .status(200)
-      .json(new ApiResponse(200, user, "Token refreshed"));
+      .json(
+        new ApiResponse(
+          200,
+          { ...user, accessToken, refreshToken: newRefreshToken },
+          "Token refreshed",
+        ),
+      );
   });
 
   logout = asyncHandler(async (req, res) => {
