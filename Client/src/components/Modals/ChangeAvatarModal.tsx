@@ -281,33 +281,25 @@ async function processAndCompressImage(file: File): Promise<Blob> {
   });
 }
 
-// Helper: Upload file from device directly via CORS-enabled Uploadcare CDN API
+// Helper: Convert processed image file to a base64 data URL for storage
 async function uploadImageFile(file: File): Promise<string> {
   // 1. Process & compress image to high quality 512x512 JPEG
   const processedBlob = await processAndCompressImage(file);
 
-  // 2. Upload via Uploadcare
-  const formData = new FormData();
-  formData.append("UPLOADCARE_PUB_KEY", "demopublickey");
-  formData.append("UPLOADCARE_STORE", "1");
-  formData.append("file", processedBlob, "avatar.jpg");
-
-  const res = await fetch("https://upload.uploadcare.com/base/", {
-    method: "POST",
-    body: formData,
+  // 2. Convert to base64 data URL (works without any external service)
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      if (result) {
+        resolve(result);
+      } else {
+        reject(new Error("Failed to convert image to data URL."));
+      }
+    };
+    reader.onerror = () => reject(new Error("Failed to read image file."));
+    reader.readAsDataURL(processedBlob);
   });
-
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    throw new Error(`Upload server error (${res.status}): ${errText || "Request failed"}`);
-  }
-
-  const data = await res.json();
-  if (data?.file) {
-    return `https://ucarecdn.com/${data.file}/`;
-  }
-
-  throw new Error("Unable to obtain image URL from upload server.");
 }
 
 export function ChangeAvatarModal({
@@ -342,6 +334,20 @@ export function ChangeAvatarModal({
       setUploadStatusText("");
     }
   }, [isOpen, currentAvatar]);
+
+  // ── Hooks must be called before any early return ──────────────────────────
+  const debouncedSearchQuery = useDebounce(searchQuery, 150);
+
+  const filteredLibrary = useMemo(() => {
+    return AVATAR_LIBRARY.filter((item) => {
+      const matchesCategory = activeCategory === "all" || item.category === activeCategory;
+      const matchesSearch =
+        !debouncedSearchQuery ||
+        item.label.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        item.category.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+  }, [activeCategory, debouncedSearchQuery]);
 
   if (!isOpen) return null;
 
@@ -392,19 +398,6 @@ export function ChangeAvatarModal({
       handleFileChange(e.dataTransfer.files[0]);
     }
   };
-
-  const debouncedSearchQuery = useDebounce(searchQuery, 150);
-
-  const filteredLibrary = useMemo(() => {
-    return AVATAR_LIBRARY.filter((item) => {
-      const matchesCategory = activeCategory === "all" || item.category === activeCategory;
-      const matchesSearch =
-        !debouncedSearchQuery ||
-        item.label.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-        item.category.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
-    });
-  }, [activeCategory, debouncedSearchQuery]);
 
   const handleRemoveAvatar = async () => {
     setSaving(true);

@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from "./api";
+import { apiGet, apiPost, BASE_URL } from "./api";
 import type {
   CreatePurchasePayload,
   PaymentOrderResult,
@@ -7,7 +7,6 @@ import type {
 } from "./types";
 
 const PURCHASES = "/api/v1/purchases";
-const BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
 
 /**
  * POST /api/v1/purchases/orders

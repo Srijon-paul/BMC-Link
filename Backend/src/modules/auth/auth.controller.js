@@ -14,10 +14,14 @@ class AuthController {
     const { user, accessToken, refreshToken } =
       await authService.loginWithGoogle(req.user, req);
 
+    const redirectUrl =
+      process.env.FRONTEND_SUCCESS_URL ||
+      (process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL.replace(/\/+$/, "")}/dashboard` : "http://localhost:5173/dashboard");
+
     res
       .cookie("accessToken", accessToken, accessCookieOptions)
       .cookie("refreshToken", refreshToken, refreshCookieOptions)
-      .redirect(process.env.FRONTEND_SUCCESS_URL || process.env.FRONTEND_URL);
+      .redirect(redirectUrl);
   });
 
   refresh = asyncHandler(async (req, res) => {

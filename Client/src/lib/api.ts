@@ -2,8 +2,31 @@ import type { ApiResponse } from "./types";
 
 // ─── Base URL ─────────────────────────────────────────────────────────────────
 
-const BASE_URL =
-  (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
+export const BASE_URL = (() => {
+  const envUrl = (import.meta.env.VITE_API_URL || "").trim();
+  // In production builds, if VITE_API_URL is unset, points to localhost, or points to onrender.com directly,
+  // use relative "" so requests route through the Vercel proxy rewrite to prevent cross-site cookie blocking
+  if (
+    import.meta.env.PROD &&
+    (!envUrl || envUrl.includes("localhost") || envUrl.includes("127.0.0.1") || envUrl.includes("onrender.com"))
+  ) {
+    return "";
+  }
+  return envUrl.replace(/\/+$/, "");
+})();
+
+// ─── CSRF Token ───────────────────────────────────────────────────────────────
+// The backend sets a non-HttpOnly `csrfToken` cookie that JS can read.
+// We forward it as `x-csrf-token` on every request so the CSRF middleware
+// accepts mutations (PATCH / POST / DELETE) in production.
+function getCsrfToken(): string {
+  return (
+    document.cookie
+      .split("; ")
+      .find((c) => c.startsWith("csrfToken="))
+      ?.split("=")[1] ?? ""
+  );
+}
 
 
 // ─── Custom Error Class ───────────────────────────────────────────────────────
@@ -37,6 +60,7 @@ export async function apiFetch<T>(
 
   const headers: HeadersInit = {
     ...(options.body && !isFormData ? { "Content-Type": "application/json" } : {}),
+    "x-csrf-token": getCsrfToken(),
     ...(options.headers ?? {}),
   };
 

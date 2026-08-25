@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from "./api";
+import { apiGet, apiPost, BASE_URL } from "./api";
 import type { User } from "./types";
 
 const AUTH = "/api/v1/auth";
@@ -9,8 +9,7 @@ const AUTH = "/api/v1/auth";
  * then redirects to FRONTEND_SUCCESS_URL (dashboard).
  */
 export function initiateGoogleLogin(): void {
-  const baseUrl = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
-  window.location.href = `${baseUrl}${AUTH}/google`;
+  window.location.href = `${BASE_URL}${AUTH}/google`;
 }
 
 /**
